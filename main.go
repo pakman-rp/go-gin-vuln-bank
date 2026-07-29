@@ -9,6 +9,7 @@ import (
 	"github.com/example/vulnbank/controllers"
 	"github.com/example/vulnbank/db"
 	"github.com/example/vulnbank/middleware"
+	"github.com/pakman-rp/gin-gonnic"
 )
 
 func main() {
