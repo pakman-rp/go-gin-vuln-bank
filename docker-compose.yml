@@ -1,0 +1,12 @@
+version: "3.9"
+
+services:
+  vulnbank:
+    build: .
+    ports:
+      - "8080:8080"
+    env_file:
+      - .env.example
+    volumes:
+      - ./db:/app/db
+      - ./uploads:/app/uploads
