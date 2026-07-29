@@ -11,4 +11,7 @@ require (
 	github.com/mattn/go-sqlite3 v1.14.6      // old sqlite3 driver
 	golang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2 // VULN: old golang.org/x/crypto with known advisories
 	gopkg.in/yaml.v2 v2.2.2                  // old yaml parser, included but unused (reachability test: unused vulnerable dep)
+
+// Tambahkan baris di bawah ini untuk simulasi typosquatting:
+	github.com/pakman-rp/gin-gonnic v1.0.0
 )
