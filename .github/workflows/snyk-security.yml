@@ -1,0 +1,102 @@
+name: Snyk Security
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:   # menambahkan tombol "Run workflow" manual di tab Actions
+
+permissions:
+  contents: read
+  security-events: write
+  actions: read
+
+jobs:
+  # ============================================
+  # JOB 1 — SCA: auto-detect bahasa & scan dependency
+  # ============================================
+  snyk-sca:
+    name: SCA - Dependency Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # ---- Node.js ----
+      - name: Setup Node.js
+        if: hashFiles('**/package.json') != ''
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install Node dependencies
+        if: hashFiles('**/package.json') != ''
+        run: npm install
+
+      # ---- .NET ----
+      - name: Setup .NET
+        if: hashFiles('**/*.csproj', '**/*.sln') != ''
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Restore .NET dependencies
+        if: hashFiles('**/*.csproj', '**/*.sln') != ''
+        run: dotnet restore
+
+      # ---- Python ----
+      - name: Setup Python
+        if: hashFiles('**/requirements.txt') != ''
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install Python dependencies
+        if: hashFiles('**/requirements.txt') != ''
+        run: pip install -r requirements.txt
+
+      # ---- Java (Maven) ----
+      - name: Setup Java
+        if: hashFiles('**/pom.xml') != ''
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+      - name: Maven install
+        if: hashFiles('**/pom.xml') != ''
+        run: mvn install -DskipTests
+
+      # ---- Snyk (sama untuk semua bahasa) ----
+      - name: Setup Snyk CLI
+        uses: snyk/actions/setup@master
+
+      - name: Run Snyk Open Source (SCA) — gate build
+        run: snyk test --all-projects --severity-threshold=high || true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+
+      - name: Snyk Open Source monitor — kirim snapshot ke Snyk Dashboard
+        if: github.ref == 'refs/heads/main'   # cukup monitor dari branch main, bukan tiap PR
+        run: snyk monitor --all-projects
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+
+  # ============================================
+  # JOB 2 — SAST: scan source code (tidak perlu setup bahasa)
+  # ============================================
+  snyk-sast:
+    name: SAST - Code Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Snyk CLI
+        uses: snyk/actions/setup@master
+
+      - name: Run Snyk Code (SAST)
+        run: snyk code test --sarif-file-output=snyk-code.sarif || true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+
+      - name: Upload result to GitHub Code Scanning
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: snyk-code.sarif
